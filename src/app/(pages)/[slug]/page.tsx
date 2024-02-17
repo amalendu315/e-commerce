@@ -3,13 +3,14 @@ import { Metadata } from 'next'
 import { draftMode } from 'next/headers'
 import { notFound } from 'next/navigation'
 
-import { Page } from '../../../payload/payload-types'
+import { Category, Page } from '../../../payload/payload-types'
 import { staticHome } from '../../../payload/seed/home-static'
 import { fetchDoc } from '../../_api/fetchDoc'
 import { fetchDocs } from '../../_api/fetchDocs'
 import { Blocks } from '../../_components/Blocks'
 import { Hero } from '../../_components/Hero'
 import { generateMeta } from '../../_utilities/generateMeta'
+import { Gutter } from '../../_components/Gutter'
 
 // Payload Cloud caches all files through Cloudflare, so we don't need Next.js to cache them as well
 // This means that we can turn off Next.js data caching and instead rely solely on the Cloudflare CDN
@@ -17,12 +18,18 @@ import { generateMeta } from '../../_utilities/generateMeta'
 // But we also need to force Next.js to dynamically render this page on each request for preview mode to work
 // See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic
 // If you are not using Payload Cloud then this line can be removed, see `../../../README.md#cache`
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
+
+import classes from "./index.module.scss"
+import Categories from '../../_components/Categories'
+import Promotion from '../../_components/Promotions'
 
 export default async function Page({ params: { slug = 'home' } }) {
   const { isEnabled: isDraftMode } = draftMode()
 
   let page: Page | null = null
+
+  let categories: Category[] | null = null;
 
   try {
     page = await fetchDoc<Page>({
@@ -30,16 +37,11 @@ export default async function Page({ params: { slug = 'home' } }) {
       slug,
       draft: isDraftMode,
     })
+    categories = await fetchDocs<Category>('categories');
   } catch (error) {
-    // when deploying this template on Payload Cloud, this page needs to build before the APIs are live
-    // so swallow the error here and simply render the page with fallback data where necessary
-    // in production you may want to redirect to a 404  page or at least log the error somewhere
-    // console.error(error)
+    console.log(error)
   }
 
-  // if no `home` page exists, render a static one using dummy content
-  // you should delete this code once you have a home page in the CMS
-  // this is really only useful for those who are demoing this template
   if (!page && slug === 'home') {
     page = staticHome
   }
@@ -52,11 +54,23 @@ export default async function Page({ params: { slug = 'home' } }) {
 
   return (
     <React.Fragment>
-      <Hero {...hero} />
-      <Blocks
-        blocks={layout}
-        disableTopPadding={!hero || hero?.type === 'none' || hero?.type === 'lowImpact'}
-      />
+      {slug === 'home' ? (
+        <section>
+          <Hero {...hero} />
+          <Gutter className={classes.home}>
+            <Categories categories={categories} />
+            <Promotion />
+          </Gutter>
+        </section>
+      ) : (
+        <>
+          <Hero {...hero} />
+          <Blocks
+            blocks={layout}
+            disableTopPadding={!hero || hero?.type === 'none' || hero?.type === 'lowImpact'}
+          />
+        </>
+      )}
     </React.Fragment>
   )
 }
